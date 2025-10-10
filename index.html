@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!-- This tells the browser it's an HTML5 document -->
+<html lang="en">
+<head>
+  <!-- Meta tags ensure the page displays correctly on all devices -->
+  <meta charset="UTF-8" />
+  <!-- Handles special characters -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Makes the page responsive for phones, tablets, etc. -->
+  <title>My Matrix Website</title>
+  <!-- Title shown in the browser tab (change to your website's name) -->
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      /* Removes default spacing */
+      background-color: #000; /* Black background for Matrix vibe */
+      overflow: hidden; /* Hides scrollbars */
+      height: 100vh; /* Full browser height */
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      /* Places canvas at top-left */
+      width: 100%;
+      height: 100%;
+      /* Fills the entire browser window */
+    }
+  </style>
+</head>
+<body>
+  <!-- Canvas where the Matrix animation is drawn -->
+  <canvas id="matrix"></canvas>
+
+  <script>
+    // Get the canvas element
+    const canvas = document.getElementById('matrix');
+    // Get the 2D drawing context to draw on the canvas
+    const ctx = canvas.getContext('2d');
+
+    // Set initial canvas size to match browser window
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Characters for the falling rain effect
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()/<>{}[]';
+    // Size of falling characters (in pixels)
+    const fontSize = 14;
+    // Size of the message (larger for visibility, change this to adjust message size)
+    const messageFontSize = 28; // Larger message text
+    // Calculate number of columns for falling characters
+    let columns = Math.floor(canvas.width / fontSize);
+    // Array to track Y-position of each column's falling characters
+    let drops = Array(columns).fill(1);
+
+    // The message to display (change this to your desired text)
+    const MESSAGE = 'SECURE ADVANCED MATRIX';
+    // When to start showing the message (in milliseconds, 3000 = 3 seconds)
+    const REVEAL_START = 3000;
+    // How long the flicker effect lasts when the message appears (3 seconds)
+    const REVEAL_DURATION = 3000;
+    // Record when the animation starts
+    const startTime = performance.now();
+
+    // Main function to draw each frame of the animation
+    function draw() {
+      // Add a faint black layer to fade out old characters (creates trail effect)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Set style for falling characters
+      ctx.fillStyle = '#0F0'; // Bright green (change to '#FF0000' for red, etc.)
+      ctx.font = fontSize + 'px monospace'; // Font for falling characters
+
+      // Get current time for timing the message
+      const now = performance.now();
+      const elapsed = now - startTime;
+
+      // Center the message horizontally
+      const startX = (canvas.width - MESSAGE.length * messageFontSize) / 2;
+      // Place message vertically in the middle
+      const yMid = canvas.height / 2;
+
+      // Draw falling characters in each column
+      for (let i = 0; i < columns; i++) {
+        const x = i * fontSize; // X-position of column
+        const y = drops[i] * fontSize; // Y-position of falling character
+        // Pick a random character
+        const text = letters.charAt(Math.floor(Math.random() * letters.length));
+        ctx.fillText(text, x, y);
+
+        // Reset column to top if character reaches bottom (randomly)
+        if (y > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++; // Move character down
+      }
+
+      // Show the message after REVEAL_START
+      if (elapsed > REVEAL_START) {
+        // Set font for the message (larger size)
+        ctx.font = messageFontSize + 'px monospace';
+        const t = elapsed - REVEAL_START; // Time since reveal started
+        const totalRevealEnd = REVEAL_DURATION; // End of flicker phase
+
+        // Draw each character of the message
+        for (let i = 0; i < MESSAGE.length; i++) {
+          const x = startX + i * messageFontSize; // X-position for this character
+          const y = yMid; // Y-position (middle of screen)
+
+          // Skip spaces
+          if (MESSAGE[i] === ' ') continue;
+
+          // Flicker effect while revealing
+          if (t <= totalRevealEnd) {
+            const p = t / REVEAL_DURATION; // Progress of reveal (0 to 1)
+            if (Math.random() < 0.2 + p * 0.5) {
+              ctx.fillStyle = '#33FF33'; // Brighter green for message
+              ctx.fillText(MESSAGE[i], x, y);
+            } else {
+              // Show random character for flicker
+              const flickerChar = letters.charAt(Math.floor(Math.random() * letters.length));
+              ctx.fillStyle = 'rgba(0,255,0,0.7)'; // Slightly transparent green
+              ctx.fillText(flickerChar, x, y);
+            }
+          } else {
+            // After flicker, show the message permanently
+            ctx.fillStyle = '#33FF33'; // Brighter green
+            ctx.fillText(MESSAGE[i], x, y);
+          }
+        }
+      }
+
+      // Keep animating
+      requestAnimationFrame(draw);
+    }
+
+    // Start the animation
+    draw();
+
+    // Handle window resize to keep animation working
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      // Update columns and drops to match new size
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+    });
+  </script>
+</body>
+</html>
