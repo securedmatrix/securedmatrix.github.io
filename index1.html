@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Matrix Website</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      overflow: hidden;
+      height: 100vh;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <script>
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+
+    // Set initial canvas size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Characters for the falling rain effect
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()/<>{}[]';
+    const fontSize = 14; // Fixed size for falling characters
+    let messageFontSize; // Will be calculated dynamically
+    let columns = Math.floor(canvas.width / fontSize);
+    let drops = Array(columns).fill(1);
+
+    const MESSAGE = 'SECURE ADVANCED MATRIX';
+    const REVEAL_START = 3000;
+    const REVEAL_DURATION = 3000;
+    const startTime = performance.now();
+
+    // Function to update canvas and message-related variables
+    function updateCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+      // Calculate message font size based on canvas width (responsive)
+      messageFontSize = Math.max(16, canvas.width / 20); // Minimum 16px, scales with width
+    }
+
+    // Initial setup
+    updateCanvas();
+
+    function draw() {
+      // Fade effect
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw falling characters
+      ctx.fillStyle = '#0F0';
+      ctx.font = fontSize + 'px monospace';
+      for (let i = 0; i < columns; i++) {
+        const x = i * fontSize;
+        const y = drops[i] * fontSize;
+        const text = letters.charAt(Math.floor(Math.random() * letters.length));
+        ctx.fillText(text, x, y);
+        if (y > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+
+      // Show message after REVEAL_START
+      const now = performance.now();
+      const elapsed = now - startTime;
+      if (elapsed > REVEAL_START) {
+        // Dynamically calculate message position
+        ctx.font = messageFontSize + 'px monospace';
+        const startX = (canvas.width - MESSAGE.length * (messageFontSize * 0.6)) / 2; // Adjust for character width
+        const yMid = canvas.height / 2;
+
+        const t = elapsed - REVEAL_START;
+        const totalRevealEnd = REVEAL_DURATION;
+
+        for (let i = 0; i < MESSAGE.length; i++) {
+          const x = startX + i * (messageFontSize * 0.6); // Adjust spacing for monospace
+          const y = yMid;
+          if (MESSAGE[i] === ' ') continue;
+
+          if (t <= totalRevealEnd) {
+            const p = t / REVEAL_DURATION;
+            if (Math.random() < 0.2 + p * 0.5) {
+              ctx.fillStyle = '#33FF33';
+              ctx.fillText(MESSAGE[i], x, y);
+            } else {
+              const flickerChar = letters.charAt(Math.floor(Math.random() * letters.length));
+              ctx.fillStyle = 'rgba(0,255,0,0.7)';
+              ctx.fillText(flickerChar, x, y);
+            }
+          } else {
+            ctx.fillStyle = '#33FF33';
+            ctx.fillText(MESSAGE[i], x, y);
+          }
+        }
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    // Start animation
+    draw();
+
+    // Handle resize
+    window.addEventListener('resize', updateCanvas);
+  </script>
+</body>
+</html>
