@@ -166,7 +166,12 @@
   <script>
     const canvas = document.getElementById("matrix");
     const ctx = canvas.getContext("2d");
-    const glyphs = "01アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF#$%&";
+    // Characters used in the falling rain. Repeating a character makes it appear more often.
+    const glyphs =
+      "0101010101" +                 // bits (repeated so binary shows up most)
+      "0123456789ABCDEF" +           // hex
+      "GHIJKLMNOPQRSTUVWXYZ" +       // rest of the A–Z alphabet
+      "<>{}[]/=+#$%&";               // code-style symbols
     const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%";
 
     let w = 0, h = 0;
