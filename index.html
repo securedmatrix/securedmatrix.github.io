@@ -3,120 +3,254 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Matrix Website</title>
+  <title>Secured Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #000;
-      overflow: hidden;
-      height: 100vh;
+    :root {
+      --green: #33ff33;
+      --black: #000;
     }
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #000;
+      color: var(--green);
+      overflow: hidden;
+      font-family: "Share Tech Mono", ui-monospace, monospace;
+    }
+
+    canvas#matrix {
+      position: fixed;
+      inset: 0;
       width: 100%;
       height: 100%;
+      z-index: 0;
     }
+
+    .hero {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px 40px;
+    }
+
+    .hero-copy {
+      opacity: 0;
+      transform: scale(0.86) translateZ(0);
+      filter: blur(12px);
+      transition: opacity 1.1s ease, transform 1.2s cubic-bezier(.16,1,.3,1), filter .9s ease;
+    }
+
+    body.is-ready .hero-copy {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+
+    h1 {
+      font-family: "Bebas Neue", Impact, sans-serif;
+      font-weight: 400;
+      font-size: clamp(42px, 8.4vw, 132px);
+      line-height: .9;
+      letter-spacing: .04em;
+      color: #fff;
+      text-shadow:
+        0 0 18px rgba(51,255,51,.45),
+        0 0 40px rgba(51,255,51,.18);
+      user-select: none;
+    }
+
+    h1 .word {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .sub {
+      margin-top: 22px;
+      color: var(--green);
+      letter-spacing: .28em;
+      font-size: clamp(11px, 1.5vw, 16px);
+      opacity: .9;
+      text-transform: uppercase;
+    }
+
+    .vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.55) 100%);
+    }
+
+    .flash {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      pointer-events: none;
+      background: #062806;
+      opacity: 0;
+    }
+
+    .flash.on {
+      animation: jackin .55s ease-out forwards;
+    }
+
+    @keyframes jackin {
+      0% { opacity: .55; }
+      35% { opacity: .18; }
+      100% { opacity: 0; }
+    }
+
+    .gate {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity .45s ease;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .gate span {
+      font-family: "Bebas Neue", Impact, sans-serif;
+      font-size: clamp(28px, 4.2vw, 52px);
+      letter-spacing: .42em;
+      color: #1aff1a;
+      text-shadow: 0 0 12px rgba(26,255,26,.35);
+      transition: text-shadow .25s ease, transform .25s ease;
+    }
+
+    .gate:hover span,
+    .gate:focus-visible span {
+      text-shadow: 0 0 22px rgba(26,255,26,.75);
+      transform: scale(1.05);
+    }
+
+    .gate.off {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .gate.gone { display: none; }
   </style>
 </head>
 <body>
   <canvas id="matrix"></canvas>
+  <div class="vignette"></div>
+  <div class="flash" id="flash"></div>
+  <div class="gate" id="gate" role="button" tabindex="0" aria-label="Enter site"><span>ENTER</span></div>
+
+  <main class="hero">
+    <div class="hero-copy">
+      <h1 aria-label="Secure Advanced Matrix">
+        <span class="word" data-final="SECURE"></span>
+        <span class="word" data-final="ADVANCED"></span>
+        <span class="word" data-final="MATRIX"></span>
+      </h1>
+      <p class="sub">Availability · Confidentiality · Integrity</p>
+    </div>
+  </main>
+
   <script>
-    const canvas = document.getElementById('matrix');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d");
+    const glyphs = "01アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF#$%&";
+    const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%";
 
-    // Set initial canvas size
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    let w = 0, h = 0;
+    let mode = "gate"; // gate -> rain
+    const start = performance.now();
+    const GATE_MS = 5000; // auto-enter after 5 seconds if nobody clicks
 
-    // Characters for the falling rain effect
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()/<>{}[]';
-    const fontSize = 14; // Fixed size for falling characters
-    let messageFontSize; // Will be calculated dynamically
-    let columns = Math.floor(canvas.width / fontSize);
-    let drops = Array(columns).fill(1);
+    let columns = 0;
+    let drops = [];
+    const fontSize = 16;
 
-    const MESSAGE = 'SECURE ADVANCED MATRIX';
-    const REVEAL_START = 3000;
-    const REVEAL_DURATION = 3000;
-    const startTime = performance.now();
-
-    // Function to update canvas and message-related variables
-    function updateCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      columns = Math.floor(canvas.width / fontSize);
-      drops = Array(columns).fill(1);
-      // Calculate message font size based on canvas width (responsive)
-      messageFontSize = Math.max(16, canvas.width / 20); // Minimum 16px, scales with width
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      columns = Math.ceil(w / fontSize);
+      drops = Array.from({ length: columns }, () => Math.floor(Math.random() * h / fontSize));
     }
 
-    // Initial setup
-    updateCanvas();
+    // Fade out the ENTER screen (on click, key press, or timeout) — runs once
+    const gate = document.getElementById("gate");
+    function openGate() {
+      if (mode !== "gate") return;
+      gate.classList.add("off");
+      setTimeout(() => gate.classList.add("gone"), 500);
+      reveal();
+    }
+    gate.addEventListener("click", openGate);
+    gate.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openGate(); }
+    });
 
-    function draw() {
-      // Fade effect
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Reveal the main page: flash, fade in headline, scramble the words
+    function reveal() {
+      mode = "rain";
+      document.getElementById("flash").classList.add("on");
+      document.body.classList.add("is-ready");
+      document.querySelectorAll(".word").forEach((el, i) => {
+        setTimeout(() => scrambleWord(el, el.dataset.final, 900 + i * 70), i * 110);
+      });
+    }
 
-      // Draw falling characters
-      ctx.fillStyle = '#0F0';
-      ctx.font = fontSize + 'px monospace';
+    function drawRain() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.font = fontSize + "px monospace";
       for (let i = 0; i < columns; i++) {
-        const x = i * fontSize;
-        const y = drops[i] * fontSize;
-        const text = letters.charAt(Math.floor(Math.random() * letters.length));
-        ctx.fillText(text, x, y);
-        if (y > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
+        const text = glyphs.charAt(Math.floor(Math.random() * glyphs.length));
+        ctx.fillStyle = Math.random() > 0.975 ? "#00aa33" : "#007a22";
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > h && Math.random() > 0.975) drops[i] = 0;
         drops[i]++;
       }
-
-      // Show message after REVEAL_START
-      const now = performance.now();
-      const elapsed = now - startTime;
-      if (elapsed > REVEAL_START) {
-        // Dynamically calculate message position
-        ctx.font = messageFontSize + 'px monospace';
-        const startX = (canvas.width - MESSAGE.length * (messageFontSize * 0.6)) / 2; // Adjust for character width
-        const yMid = canvas.height / 2;
-
-        const t = elapsed - REVEAL_START;
-        const totalRevealEnd = REVEAL_DURATION;
-
-        for (let i = 0; i < MESSAGE.length; i++) {
-          const x = startX + i * (messageFontSize * 0.6); // Adjust spacing for monospace
-          const y = yMid;
-          if (MESSAGE[i] === ' ') continue;
-
-          if (t <= totalRevealEnd) {
-            const p = t / REVEAL_DURATION;
-            if (Math.random() < 0.2 + p * 0.5) {
-              ctx.fillStyle = '#33FF33';
-              ctx.fillText(MESSAGE[i], x, y);
-            } else {
-              const flickerChar = letters.charAt(Math.floor(Math.random() * letters.length));
-              ctx.fillStyle = 'rgba(0,255,0,0.7)';
-              ctx.fillText(flickerChar, x, y);
-            }
-          } else {
-            ctx.fillStyle = '#33FF33';
-            ctx.fillText(MESSAGE[i], x, y);
-          }
-        }
-      }
-
-      requestAnimationFrame(draw);
     }
 
-    // Start animation
-    draw();
+    function scrambleWord(el, final, duration = 1100) {
+      const t0 = performance.now();
+      function tick(now) {
+        const p = Math.min(1, (now - t0) / duration);
+        const revealed = Math.floor(p * final.length);
+        let out = "";
+        for (let i = 0; i < final.length; i++) {
+          out += i < revealed ? final[i] : latin[Math.floor(Math.random() * latin.length)];
+        }
+        el.textContent = out;
+        if (p < 1) requestAnimationFrame(tick);
+        else el.textContent = final;
+      }
+      requestAnimationFrame(tick);
+    }
 
-    // Handle resize
-    window.addEventListener('resize', updateCanvas);
+    function loop(now) {
+      if (mode === "gate") {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, w, h);
+        if (now - start >= GATE_MS) openGate();
+      } else {
+        drawRain();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+    requestAnimationFrame(loop);
   </script>
 </body>
 </html>
